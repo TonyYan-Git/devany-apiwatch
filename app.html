@@ -796,6 +796,7 @@
   <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.28.6/cloudbase.full.js"></script>
   <script>
     const ENV_ID = 'apiwatch-d9gfn0faz9ddeca93';
+    const HTTP_API = 'https://apiwatch-d9gfn0faz9ddeca93-1442244932.ap-shanghai.app.tcloudbase.com';
     const app = cloudbase.init({ env: ENV_ID });
     const auth = app.auth({ persistence: 'local' });
 
@@ -856,19 +857,21 @@
       location.href = 'login.html';
     }
 
-    // ── 云函数调用 ──
+    // ── 云函数调用（HTTP直连，绕过CORS限制）──
     async function callApi(action, data = {}) {
-      const res = await app.callFunction({
-        name: 'monitorApi',
-        data: { action, data: { ...data, uid: currentUser.uid, email: currentUser.email || '' } }
+      const res = await fetch(HTTP_API + '/monitorApi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, data: { ...data, uid: currentUser.uid, email: currentUser.email || '' } })
       });
-      if (!res.result.success) {
-        const err = new Error(res.result.error);
-        err.code = res.result.code;
-        err.result = res.result;
+      const result = await res.json();
+      if (!result.success) {
+        const err = new Error(result.error);
+        err.code = result.code;
+        err.result = result;
         throw err;
       }
-      return res.result;
+      return result;
     }
 
     // ── 套餐信息 ──
