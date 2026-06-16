@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 · API监控</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .box {
+      background: #fff; border-radius: 16px; padding: 40px 36px 36px;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; }
+    .logo p  { font-size: 13px; color: #999; margin-top: 4px; }
+    .tabs {
+      display: flex; background: #f0f2f5; border-radius: 10px;
+      padding: 3px; margin-bottom: 24px;
+    }
+    .tab {
+      flex: 1; text-align: center; padding: 9px;
+      border-radius: 8px; font-size: 14px; cursor: pointer;
+      color: #888; font-weight: 500; transition: all .2s;
+    }
+    .tab.active {
+      background: #fff; color: #2c3e50; font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+    .field input {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid #e8e8e8; border-radius: 8px;
+      font-size: 14px; outline: none; transition: border .2s; background: #fafafa;
+    }
+    .field input:focus { border-color: #4a90d9; background: #fff; }
+    .code-row { display: flex; gap: 10px; }
+    .code-row input { flex: 1; }
+    .btn-code {
+      white-space: nowrap; padding: 11px 14px;
+      border: 1.5px solid #4a90d9; border-radius: 8px;
+      font-size: 13px; font-weight: 500; color: #4a90d9;
+      background: #fff; cursor: pointer; min-width: 96px; text-align: center;
+      transition: all .2s;
+    }
+    .btn-code:hover { background: #f0f6ff; }
+    .btn-code:disabled { color: #aaa; border-color: #ddd; cursor: not-allowed; }
+    .btn-submit {
+      width: 100%; padding: 13px; background: #4a90d9; color: #fff;
+      border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 4px; transition: background .2s;
+    }
+    .btn-submit:hover { background: #357abd; }
+    .btn-submit:disabled { background: #a0c4e8; cursor: not-allowed; }
+    .msg { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .msg.err { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+    .msg.ok  { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+    .footer-tip { text-align: center; font-size: 12px; color: #bbb; margin-top: 20px; }
+    .hint { font-size: 12px; color: #aaa; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">
+      <h1>🔍 API 监控</h1>
+      <p>自动检测 · 飞书/企微告警 · 完全免费</p>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" id="tabLogin"    onclick="switchTab('login')">登录</div>
+      <div class="tab"        id="tabRegister" onclick="switchTab('register')">注册</div>
+    </div>
+
+    <div id="msgBox" class="msg"></div>
+
+    <!-- ===== 登录：邮箱 + 密码 ===== -->
+    <div id="formLogin">
+      <div class="field">
+        <label>邮箱</label>
+        <input id="loginEmail" type="email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input id="loginPwd" type="password" placeholder="请输入密码" autocomplete="current-password">
+      </div>
+      <button class="btn-submit" id="btnLogin" onclick="doLogin()">登录</button>
+    </div>
+
+    <!-- ===== 注册：邮箱 + 验证码 + 设密码 ===== -->
+    <div id="formRegister" style="display:none;">
+      <div class="field">
+        <label>邮箱</label>
+        <div class="code-row">
+          <input id="regEmail" type="email" placeholder="your@email.com" autocomplete="email">
+          <button class="btn-code" id="btnRegCode" onclick="sendRegCode()">发验证码</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>验证码</label>
+        <input id="regCode" type="text" placeholder="收到后填入" maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+      </div>
+      <div class="field">
+        <label>设置密码</label>
+        <input id="regPwd" type="password" placeholder="至少6位" autocomplete="new-password">
+        <div class="hint">注册后登录直接用邮箱+密码，无需再收验证码</div>
+      </div>
+      <button class="btn-submit" id="btnRegister" onclick="doRegister()">注册</button>
+    </div>
+
+    <div class="footer-tip">登录即表示你同意使用本服务</div>
+  </div>
+
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.28.6/cloudbase.full.js"></script>
+  <script>
+    const ENV_ID = 'apiwatch-d9gfn0faz9ddeca93';
+    const app  = cloudbase.init({ env: ENV_ID });
+    const auth = app.auth({ persistence: 'local' });
+
+    let regVerifId = null;
+    const cdTimers = {};
+
+    // 已登录直接跳
+    (async () => {
+      try { const s = await auth.getLoginState(); if (s) location.href = 'app.html'; } catch(e) {}
+    })();
+
+    function showMsg(type, text) {
+      const el = document.getElementById('msgBox');
+      el.className = 'msg ' + type;
+      el.textContent = text;
+      el.style.display = 'block';
+    }
+    function hideMsg() { document.getElementById('msgBox').style.display = 'none'; }
+
+    function setBtn(id, disabled, text) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = disabled;
+      if (text !== undefined) el.textContent = text;
+    }
+
+    function startCd(btnId, sec = 60) {
+      clearInterval(cdTimers[btnId]);
+      let left = sec;
+      setBtn(btnId, true, `${left}s`);
+      cdTimers[btnId] = setInterval(() => {
+        left--;
+        if (left <= 0) { clearInterval(cdTimers[btnId]); setBtn(btnId, false, '重新发送'); }
+        else setBtn(btnId, true, `${left}s`);
+      }, 1000);
+    }
+
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('tabLogin').classList.toggle('active', isLogin);
+      document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+      document.getElementById('formLogin').style.display    = isLogin ? '' : 'none';
+      document.getElementById('formRegister').style.display = isLogin ? 'none' : '';
+      hideMsg();
+    }
+
+    /* ---- 登录：邮箱 + 密码 ---- */
+    async function doLogin() {
+      hideMsg();
+      const email = document.getElementById('loginEmail').value.trim();
+      const pwd   = document.getElementById('loginPwd').value;
+      if (!email) { showMsg('err', '请填写邮箱'); return; }
+      if (!pwd)   { showMsg('err', '请填写密码'); return; }
+      setBtn('btnLogin', true, '登录中...');
+      try {
+        await auth.signInWithEmailAndPassword(email, pwd);
+        localStorage.setItem('apiwatch_email', email);
+        location.href = 'app.html';
+      } catch(e) {
+        const m = e.message || e.errMsg || e.msg || JSON.stringify(e) || '未知错误';
+        console.error('登录失败:', e);
+        if (m.includes('PASSWORD') || m.includes('invalid') || m.includes('USER_NOT_FOUND') || m.includes('NOT_FOUND')) {
+          showMsg('err', '邮箱或密码错误');
+        } else {
+          showMsg('err', '登录失败：' + m);
+        }
+        setBtn('btnLogin', false, '登录');
+      }
+    }
+
+    /* ---- 注册第一步：发验证码 ---- */
+    async function sendRegCode() {
+      hideMsg();
+      const email = document.getElementById('regEmail').value.trim();
+      if (!email) { showMsg('err', '请先填写邮箱'); return; }
+      setBtn('btnRegCode', true, '发送中...');
+      try {
+        const res = await auth.getVerification({ email });
+        regVerifId = res.verification_id;
+        showMsg('ok', `验证码已发送至 ${email}`);
+        startCd('btnRegCode');
+      } catch(e) {
+        const m = e.message || e.errMsg || e.msg || JSON.stringify(e) || '未知错误';
+        console.error('发验证码失败:', e);
+        showMsg('err', '发送失败：' + m);
+        setBtn('btnRegCode', false, '发验证码');
+      }
+    }
+
+    /* ---- 注册第二步：验证 + 创建账号 ---- */
+    async function doRegister() {
+      hideMsg();
+      const email = document.getElementById('regEmail').value.trim();
+      const code  = document.getElementById('regCode').value.trim();
+      const pwd   = document.getElementById('regPwd').value;
+      if (!email)          { showMsg('err', '请填写邮箱'); return; }
+      if (!code)           { showMsg('err', '请填写验证码'); return; }
+      if (!regVerifId)     { showMsg('err', '请先发送验证码'); return; }
+      if (!pwd || pwd.length < 6) { showMsg('err', '密码至少6位'); return; }
+      setBtn('btnRegister', true, '注册中...');
+      try {
+        const tokenRes = await auth.verify({
+          verification_id: regVerifId,
+          verification_code: code
+        });
+        await auth.signUp({
+          email: email,
+          verification_code: code,
+          verification_token: tokenRes.verification_token,
+          password: pwd
+        });
+        // signUp 成功后自动登录，直接跳转
+        localStorage.setItem('apiwatch_email', email);
+        showMsg('ok', '注册成功，正在跳转...');
+        setTimeout(() => { location.href = 'app.html'; }, 600);
+      } catch(e) {
+        // CloudBase SDK 错误可能在 e.message、e.errMsg、e.code 等字段
+        const m = e.message || e.errMsg || e.msg || JSON.stringify(e) || '未知错误';
+        console.error('注册失败详情:', e);
+        if (m.includes('ALREADY_EXISTS') || m.includes('already') || m.includes('EMAIL_ALREADY')) {
+          showMsg('err', '该邮箱已注册，请切换到登录');
+        } else if (m.includes('CODE') || m.includes('code') || m.includes('invalid') || m.includes('INVALID')) {
+          showMsg('err', '验证码错误或已过期，请重新发送');
+        } else {
+          showMsg('err', '注册失败：' + m);
+        }
+        setBtn('btnRegister', false, '注册');
+      }
+    }
+
+    // 回车
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      if (document.getElementById('formLogin').style.display !== 'none') doLogin();
+      else doRegister();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API监控</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #2c3e50;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── 侧边栏 ── */
+    .sidebar {
+      width: 220px;
+      min-height: 100vh;
+      background: #1a1f2e;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+    .sidebar-logo {
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .sidebar-logo h1 { font-size: 18px; font-weight: 700; color: #fff; }
+    .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 20px;
+      color: rgba(255,255,255,0.55);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 0;
+      transition: all .15s;
+      position: relative;
+      font-weight: 500;
+    }
+    .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .nav-item.active {
+      color: #fff;
+      background: rgba(74,144,217,0.2);
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 8px; bottom: 8px;
+      width: 3px;
+      background: #4a90d9;
+      border-radius: 0 3px 3px 0;
+    }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .nav-badge {
+      margin-left: auto;
+      background: #4a90d9;
+      color: #fff;
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+
+    /* 套餐信息条 */
+    .plan-bar {
+      margin-bottom: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .plan-bar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .plan-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .plan-name.pro { color: #f5a623; }
+    .plan-usage {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+    }
+    .plan-progress {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .plan-progress-fill {
+      height: 100%;
+      background: #4a90d9;
+      border-radius: 2px;
+      transition: width .3s;
+    }
+    .plan-progress-fill.warn { background: #f5a623; }
+    .plan-progress-fill.full { background: #e74c3c; }
+    .btn-upgrade {
+      width: 100%;
+      margin-top: 8px;
+      padding: 7px;
+      background: linear-gradient(135deg, #f5a623, #f76b1c);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-upgrade:hover { opacity: 0.9; }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .user-avatar {
+      width: 32px; height: 32px;
+      background: #4a90d9;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #fff;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .user-email {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-logout {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-logout:hover { background: rgba(231,76,60,0.2); color: #e74c3c; border-color: rgba(231,76,60,0.3); }
+
+    /* ── 主内容区 ── */
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      min-height: 100vh;
+      padding: 28px;
+      max-width: 900px;
+    }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── 页面标题 ── */
+    .page-header {
+      margin-bottom: 24px;
+    }
+    .page-header h2 { font-size: 22px; font-weight: 700; color: #1a1f2e; }
+    .page-header p { font-size: 13px; color: #999; margin-top: 4px; }
+
+    /* ── 卡片 ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* ── 表格 ── */
+    .monitor-table { width: 100%; border-collapse: collapse; }
+    .monitor-table thead th {
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #f0f0f0;
+      background: #fafbfc;
+    }
+    .monitor-table tbody td {
+      padding: 14px;
+      border-bottom: 1px solid #f5f5f5;
+      vertical-align: middle;
+    }
+    .monitor-table tbody tr:hover { background: #f9fafb; }
+    .monitor-table tbody tr:last-child td { border-bottom: none; }
+    .cell-url { max-width: 320px; word-break: break-all; }
+    .cell-url .url-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    .cell-url .url-meta {
+      font-size: 11px;
+      color: #bbb;
+      margin-top: 3px;
+    }
+    .cell-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-up { background: #27ae60; }
+    .status-down { background: #e74c3c; }
+    .status-unknown { background: #bdc3c7; }
+    .status-text {
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-text.up { color: #27ae60; }
+    .status-text.down { color: #e74c3c; }
+    .status-text.unknown { color: #999; }
+    .cell-actions { white-space: nowrap; }
+    .cell-actions > * { margin-right: 6px; }
+    .cell-actions > *:last-child { margin-right: 0; }
+    .tag {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 5px;
+      font-weight: 600;
+    }
+    .tag-up { background: #e8f8f0; color: #27ae60; }
+    .tag-down { background: #fdf0ef; color: #e74c3c; }
+    .tag-unknown { background: #f5f5f5; color: #999; }
+    .btn { padding: 7px 14px; border: none; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 500; transition: all .15s; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-primary { background: #4a90d9; color: #fff; }
+    .btn-primary:hover { background: #357abd; }
+    .btn-ghost { background: #f5f5f5; color: #555; border: 1px solid #eee; }
+    .btn-ghost:hover { background: #ebebeb; }
+    .btn-danger { background: #fff; color: #e74c3c; border: 1px solid #ffccc7; }
+    .btn-danger:hover { background: #fff2f0; }
+    .btn-detail { background: #eef5fd; color: #4a90d9; font-size: 12px; padding: 5px 12px; border: 1px solid #d0e5f9; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all .15s; }
+    .btn-detail:hover { background: #dce8f7; }
+    .toggle-btn { font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid; cursor: pointer; font-weight: 500; background: #fff; }
+    .toggle-btn.active { color: #27ae60; border-color: #b7ebd0; }
+    .toggle-btn.active:hover { background: #e8f8f0; }
+    .toggle-btn.paused { color: #f39c12; border-color: #fde3a7; }
+    .toggle-btn.paused:hover { background: #fff8ec; }
+    .empty { text-align: center; padding: 50px 20px; color: #ccc; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .loading { text-align: center; padding: 50px; color: #bbb; }
+
+    /* ── 详情弹窗 ── */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1001;
+      align-items: center;
+      justify-content: center;
+    }
+    .detail-overlay.show { display: flex; }
+    .detail-panel {
+      background: #fff;
+      border-radius: 14px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid #f0f0f0;
+      flex-shrink: 0;
+    }
+    .detail-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1f2e;
+      word-break: break-all;
+      flex: 1;
+      margin-right: 16px;
+    }
+    .detail-close {
+      width: 32px; height: 32px;
+      border: none;
+      background: #f5f5f5;
+      border-radius: 8px;
+      font-size: 18px;
+      color: #999;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .detail-close:hover { background: #ebebeb; color: #333; }
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .log-table thead th {
+      position: sticky;
+      top: 0;
+      background: #fafbfc;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-align: left;
+      border-bottom: 2px solid #e8e8e8;
+    }
+    .log-table tbody td {
+      padding: 11px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid #f5f5f5;
+      color: #444;
+    }
+    .log-table tbody tr:hover { background: #f9fafb; }
+    .log-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .log-badge.up { background: #e8f8f0; color: #27ae60; }
+    .log-badge.down { background: #fdf0ef; color: #e74c3c; }
+    .detail-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-top: 1px solid #f0f0f0;
+      flex-shrink: 0;
+    }
+    .page-info {
+      font-size: 13px;
+      color: #999;
+    }
+    .page-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .page-btn {
+      padding: 7px 14px;
+      border: 1px solid #e0e0e0;
+      border-radius: 7px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      color: #555;
+      transition: all .15s;
+    }
+    .page-btn:hover:not(:disabled) { border-color: #4a90d9; color: #4a90d9; }
+    .page-btn:disabled { color: #ccc; cursor: not-allowed; }
+    .page-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+
+    /* ── 统计栏 ── */
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      flex: 1;
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .stat-val { font-size: 28px; font-weight: 700; color: #1a1f2e; }
+    .stat-label { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .stat-card.green .stat-val { color: #27ae60; }
+    .stat-card.red .stat-val { color: #e74c3c; }
+
+    /* ── 表单 ── */
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 7px; font-weight: 500; }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e8e8e8;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border .2s;
+      background: #fafafa;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #4a90d9; background: #fff; }
+    .form-hint { font-size: 12px; color: #bbb; margin-top: 5px; }
+
+    /* ── 表单增强 ── */
+    .form-card { padding: 32px; }
+    .form-section {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .form-section:last-of-type { border-bottom: none; }
+    .form-section-icon {
+      width: 40px; height: 40px;
+      background: #f0f4ff;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .form-section-body { flex: 1; min-width: 0; }
+    .form-row { display: flex; gap: 20px; }
+    .form-row .form-group { flex: 1; }
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding-top: 8px;
+    }
+    .btn-lg { padding: 12px 28px; font-size: 15px; border-radius: 9px; }
+    .type-btn-icon { margin-right: 4px; font-size: 16px; }
+    .type-btn-label { font-weight: 500; }
+    .type-select { display: flex; gap: 10px; }
+    .type-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 14px 20px;
+      border: 1.5px solid #e8e8e8;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #fafafa;
+      color: #888;
+      transition: all .15s;
+      font-weight: 500;
+    }
+    .type-btn:hover { background: #f0f6ff; border-color: #c8daf5; color: #4a90d9; }
+    .type-btn.selected { background: #eef5fd; color: #4a90d9; border-color: #4a90d9; box-shadow: 0 0 0 2px rgba(74,144,217,0.15); }
+    .webhook-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #27ae60;
+      background: #e8f8f0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
+    .webhook-status.empty { color: #999; background: #f8f8f8; }
+
+    /* ── 升级弹窗 ── */
+    .modal-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-mask.show { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 28px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .modal-icon { font-size: 48px; margin-bottom: 14px; }
+    .modal-title { font-size: 20px; font-weight: 700; color: #1a1f2e; margin-bottom: 8px; }
+    .modal-desc { font-size: 14px; color: #888; line-height: 1.7; margin-bottom: 24px; }
+    .plan-compare {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .plan-option {
+      flex: 1;
+      border: 2px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 14px 10px;
+    }
+    .plan-option.current { border-color: #d0e8ff; background: #f0f7ff; }
+    .plan-option.highlight { border-color: #f5a623; background: #fffbf0; }
+    .plan-option-name { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 4px; }
+    .plan-option-limit { font-size: 22px; font-weight: 800; color: #1a1f2e; margin-bottom: 4px; }
+    .plan-option-limit span { font-size: 13px; color: #aaa; font-weight: 400; }
+    .plan-option-price { font-size: 12px; color: #aaa; }
+    .plan-option.highlight .plan-option-price { color: #f5a623; font-weight: 600; }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn { flex: 1; padding: 12px; }
+    .btn-upgrade-cta {
+      background: linear-gradient(135deg, #f5a623, #f76b1c);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-upgrade-cta:hover { opacity: 0.9; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1a1f2e;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 9999;
+      opacity: 0;
+      transition: all .3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: #e74c3c; }
+
+    /* ── 响应式 ── */
+    @media (max-width: 640px) {
+      .sidebar { width: 60px; }
+      .sidebar-logo p, .nav-item span, .user-email, .btn-logout, .plan-bar { display: none; }
+      .nav-item { justify-content: center; padding: 14px; }
+      .nav-icon { font-size: 20px; }
+      .main { margin-left: 60px; padding: 16px; }
+      .stats-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── 侧边栏 ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>🔍 API 监控</h1>
+      <p>自动检测 · 实时告警</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="navTo('monitors')" id="nav-monitors">
+        <span class="nav-icon">📊</span>
+        <span>监控列表</span>
+        <span class="nav-badge" id="monitorCount" style="display:none">0</span>
+      </div>
+      <div class="nav-item" onclick="navTo('add')" id="nav-add">
+        <span class="nav-icon">➕</span>
+        <span>添加监控</span>
+      </div>
+      <div class="nav-item" onclick="navTo('settings')" id="nav-settings">
+        <span class="nav-icon">🔔</span>
+        <span>通知设置</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <!-- 套餐信息 -->
+      <div class="plan-bar" id="planBar">
+        <div class="plan-bar-top">
+          <span class="plan-name" id="planName">免费版</span>
+          <span class="plan-usage" id="planUsage">0 / 5</span>
+        </div>
+        <div class="plan-progress">
+          <div class="plan-progress-fill" id="planFill" style="width:0%"></div>
+        </div>
+        <button class="btn-upgrade" id="btnSideUpgrade" onclick="showUpgradeModal()" style="display:none">
+          ⚡ 升级 Pro
+        </button>
+      </div>
+      <div class="user-info">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-email" id="userEmail">加载中...</div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">退出登录</button>
+    </div>
+  </aside>
+
+  <!-- ── 主内容 ── -->
+  <main class="main">
+
+    <!-- 监控列表页 -->
+    <div class="page active" id="page-monitors">
+      <div class="page-header">
+        <h2>监控列表</h2>
+        <p>所有 API 的实时健康状态，每分钟自动检测一次</p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-val" id="statTotal">—</div>
+          <div class="stat-label">监控总数</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-val" id="statUp">—</div>
+          <div class="stat-label">正常</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-val" id="statDown">—</div>
+          <div class="stat-label">异常</div>
+        </div>
+      </div>
+      <div class="card">
+        <div id="monitorList"><div class="loading">加载中...</div></div>
+      </div>
+    </div>
+
+    <!-- 添加监控页 -->
+    <div class="page" id="page-add">
+      <div class="page-header">
+        <h2>添加监控</h2>
+        <p>填写接口地址，系统每分钟自动检测一次，异常时即时推送告警</p>
+      </div>
+      <div class="card form-card">
+        <div class="form-section">
+          <div class="form-section-icon">🌐</div>
+          <div class="form-section-body">
+            <div class="form-group">
+              <label>接口 URL</label>
+              <input id="inputUrl" type="url" placeholder="https://api.example.com/health">
+              <div class="form-hint">支持 HTTP 和 HTTPS 协议，完整填写接口地址</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-icon">🎯</div>
+          <div class="form-section-body">
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label>期望状态码</label>
+                <input id="inputCode" type="number" placeholder="200" value="200">
+                <div class="form-hint">返回此状态码视为正常</div>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>超时阈值</label>
+                <input id="inputTimeout" type="number" placeholder="3000" value="3000" style="width:100%;">
+                <div class="form-hint">超过此毫秒数视为异常</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-lg" onclick="addMonitor()">立即添加</button>
+          <button class="btn btn-ghost btn-lg" onclick="navTo('monitors')">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通知设置页 -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <h2>通知设置</h2>
+        <p>配置告警通知渠道，连续 3 次检测失败后触发推送，10 分钟内不重复</p>
+      </div>
+      <div class="card form-card">
+        <div class="form-section">
+          <div class="form-section-icon">🔔</div>
+          <div class="form-section-body">
+            <div class="form-group">
+              <label>告警渠道</label>
+              <div class="type-select">
+                <button class="type-btn selected" id="typeFeishu" onclick="selectType('feishu')">
+                  <span class="type-btn-icon">🔹</span>
+                  <span class="type-btn-label">飞书</span>
+                </button>
+                <button class="type-btn" id="typeWecom" onclick="selectType('wecom')">
+                  <span class="type-btn-icon">💬</span>
+                  <span class="type-btn-label">企业微信</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-icon">🔗</div>
+          <div class="form-section-body">
+            <div class="form-group">
+              <label>Webhook 地址</label>
+              <input type="url" id="webhookUrl" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxxxx">
+              <div class="form-hint" id="webhookHint">
+                飞书：群设置 → 群机器人 → 添加自定义机器人，安全设置关键词填「监控」
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-lg" onclick="saveSettings()">保存设置</button>
+          <button class="btn btn-ghost btn-lg" id="btnTestWebhook" onclick="testWebhook()">发送测试消息</button>
+        </div>
+        <div id="webhookStatus"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── 升级弹窗 ── -->
+  <div class="modal-mask" id="upgradeModal" onclick="hideUpgradeModal(event)">
+    <div class="modal-box">
+      <div class="modal-icon">⚡</div>
+      <div class="modal-title">升级 Pro 版</div>
+      <div class="modal-desc">升级后自动开通，刷新页面即可生效</div>
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 14px;font-size:12px;color:#8d6e00;margin-bottom:16px;line-height:1.6;">
+        💡 支付时请在 <b>备注栏</b> 填写你的注册邮箱，系统将自动为你开通 Pro。
+      </div>
+      <div class="plan-compare">
+        <div class="plan-option current">
+          <div class="plan-option-name">免费版</div>
+          <div class="plan-option-limit">5 <span>个监控</span></div>
+          <div class="plan-option-price">永久免费</div>
+        </div>
+        <div class="plan-option highlight">
+          <div class="plan-option-name">✨ Pro 版</div>
+          <div class="plan-option-limit">50 <span>个监控</span></div>
+          <div class="plan-option-price">9.9元 / 月</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="hideUpgradeModal()">以后再说</button>
+        <button class="btn btn-upgrade-cta" onclick="goUpgrade()">立即升级</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- ── 详情弹窗 ── -->
+  <div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+    <div class="detail-panel" onclick="event.stopPropagation()">
+      <div class="detail-header">
+        <div class="detail-title" id="detailUrl">—</div>
+        <button class="detail-close" onclick="closeDetail()">&times;</button>
+      </div>
+      <div class="detail-body">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>检测时间</th>
+              <th>状态码</th>
+              <th>延迟</th>
+              <th>结果</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody">
+            <tr><td colspan="4" style="text-align:center;padding:40px;color:#bbb;">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="detail-footer" id="detailFooter">
+        <div class="page-info" id="pageInfo">—</div>
+        <div class="page-btns" id="pageBtns"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/2.28.6/cloudbase.full.js"></script>
+  <script>
+    const ENV_ID = 'apiwatch-d9gfn0faz9ddeca93';
+    const app = cloudbase.init({ env: ENV_ID });
+    const auth = app.auth({ persistence: 'local' });
+
+    let currentUser = null;
+    let monitors = [];
+    let currentWebhookType = 'feishu';
+    let userPlan = { plan: 'free', monitor_limit: 5, monitor_count: 0 };
+
+    // 详情弹窗状态
+    let detailMonitorId = null;
+    let detailPage = 1;
+    let detailTotalPages = 0;
+
+    // ── 工具 ──
+    function toast(msg, isError) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast' + (isError ? ' error' : '') + ' show';
+      setTimeout(() => el.className = 'toast', 2800);
+    }
+    function esc(s) { return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function timeAgo(d) {
+      const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+      if (diff < 60) return diff + '秒前';
+      if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+      if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+      return Math.floor(diff / 86400) + '天前';
+    }
+
+    // ── 导航 ──
+    function navTo(page) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+      document.getElementById('nav-' + page).classList.add('active');
+      document.getElementById('page-' + page).classList.add('active');
+      if (page === 'monitors') loadMonitors();
+      if (page === 'settings') loadSettings();
+    }
+
+    // ── 登录检查 ──
+    async function init() {
+      try {
+        const state = await auth.getLoginState();
+        if (!state) { location.href = 'login.html'; return; }
+        currentUser = state.user;
+        const email = currentUser.email || '';
+        localStorage.setItem('apiwatch_email', email);
+        document.getElementById('userEmail').textContent = email;
+        document.getElementById('userAvatar').textContent = email ? email[0].toUpperCase() : '?';
+        await Promise.all([loadMonitors(), loadUserPlan()]);
+      } catch(e) {
+        location.href = 'login.html';
+      }
+    }
+
+    async function doLogout() {
+      await auth.signOut();
+      location.href = 'login.html';
+    }
+
+    // ── 云函数调用 ──
+    async function callApi(action, data = {}) {
+      const res = await app.callFunction({
+        name: 'monitorApi',
+        data: { action, data: { ...data, uid: currentUser.uid, email: currentUser.email || '' } }
+      });
+      if (!res.result.success) {
+        const err = new Error(res.result.error);
+        err.code = res.result.code;
+        err.result = res.result;
+        throw err;
+      }
+      return res.result;
+    }
+
+    // ── 套餐信息 ──
+    async function loadUserPlan() {
+      try {
+        const res = await callApi('getUserInfo');
+        userPlan = res.data;
+        renderPlanBar();
+      } catch(e) {
+        console.warn('获取套餐信息失败', e.message);
+      }
+    }
+
+    function renderPlanBar() {
+      const { plan, plan_name, monitor_limit, monitor_count } = userPlan;
+      const pct = Math.min(100, Math.round((monitor_count / monitor_limit) * 100));
+
+      document.getElementById('planName').textContent = plan_name;
+      document.getElementById('planName').className = 'plan-name' + (plan === 'pro' ? ' pro' : '');
+      document.getElementById('planUsage').textContent = `${monitor_count} / ${monitor_limit}`;
+
+      const fill = document.getElementById('planFill');
+      fill.style.width = pct + '%';
+      fill.className = 'plan-progress-fill' + (pct >= 100 ? ' full' : pct >= 80 ? ' warn' : '');
+
+      // 免费版且接近上限时显示升级按钮
+      document.getElementById('btnSideUpgrade').style.display =
+        (plan === 'free' && pct >= 60) ? '' : 'none';
+    }
+
+    // ── 升级弹窗 ──
+    function showUpgradeModal() {
+      document.getElementById('upgradeModal').classList.add('show');
+    }
+    function hideUpgradeModal(e) {
+      if (!e || e.target === document.getElementById('upgradeModal')) {
+        document.getElementById('upgradeModal').classList.remove('show');
+      }
+    }
+    function goUpgrade() {
+      var email = localStorage.getItem('apiwatch_email') || '';
+      var url = 'https://ifdian.net/order/create';
+      url += '?plan_id=9b962878694e11f19e2952540025c377';
+      url += '&product_type=0';
+      url += '&remark=' + encodeURIComponent(email);
+      url += '&affiliate_code=&fr=afcom';
+      toast('即将跳转到爱发电支付页，备注已自动填入你的注册邮箱 📧');
+      setTimeout(function() { window.open(url, '_blank'); }, 1200);
+      hideUpgradeModal();
+    }
+
+    // ── 监控列表 ──
+    async function loadMonitors() {
+      try {
+        const res = await callApi('list');
+        monitors = res.data || [];
+        renderList();
+        renderStats();
+        const badge = document.getElementById('monitorCount');
+        if (monitors.length > 0) {
+          badge.textContent = monitors.length;
+          badge.style.display = '';
+        } else {
+          badge.style.display = 'none';
+        }
+        // 同步更新套餐用量
+        if (userPlan) {
+          userPlan.monitor_count = monitors.length;
+          renderPlanBar();
+        }
+      } catch(e) {
+        document.getElementById('monitorList').innerHTML =
+          '<div class="empty"><div class="empty-icon">⚠️</div>加载失败: ' + esc(e.message) + '</div>';
+      }
+    }
+
+    function renderStats() {
+      const total = monitors.length;
+      const up = monitors.filter(m => m.latest_ping && m.latest_ping.is_up).length;
+      const down = monitors.filter(m => m.latest_ping && !m.latest_ping.is_up).length;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statUp').textContent = up;
+      document.getElementById('statDown').textContent = down;
+    }
+
+    function renderList() {
+      const el = document.getElementById('monitorList');
+      if (monitors.length === 0) {
+        el.innerHTML = `<div class="empty">
+          <div class="empty-icon">🔍</div>
+          <div>还没有监控</div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-primary btn-sm" onclick="navTo('add')">添加第一个</button>
+          </div>
+        </div>`;
+        return;
+      }
+      const rows = monitors.map(m => {
+        const ping = m.latest_ping;
+        let statusClass = 'unknown', statusText = '等待', metaText = '暂无检测数据';
+        if (ping) {
+          statusClass = ping.is_up ? 'up' : 'down';
+          statusText = ping.is_up ? '正常' : '异常';
+          const code = ping.is_up ? `${ping.status_code} · ${ping.latency_ms}ms` : (ping.status_code || '超时');
+          metaText = `${code} · 上次检测 ${timeAgo(ping.checked_at)}`;
+        }
+        const dotClass = ping ? (ping.is_up ? 'status-up' : 'status-down') : 'status-unknown';
+        const isActive = m.is_active !== false;
+        return `<tr>
+          <td class="cell-url">
+            <div class="url-text">${esc(m.url)}</div>
+            <div class="url-meta">${metaText}${!isActive ? ' · 已暂停' : ''}</div>
+          </td>
+          <td>
+            <div class="cell-status">
+              <div class="status-dot ${dotClass}"></div>
+              <span class="status-text ${statusClass}">${statusText}</span>
+            </div>
+          </td>
+          <td class="cell-actions">
+            <button class="toggle-btn ${isActive ? 'active' : 'paused'}" onclick="toggleMonitor('${m._id}')">
+              ${isActive ? '运行中' : '已暂停'}
+            </button>
+            <button class="btn-detail" onclick="openDetail('${m._id}')">详情</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteMonitor('${m._id}')">删除</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      el.innerHTML = `<table class="monitor-table">
+        <thead><tr><th>接口 URL</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    async function deleteMonitor(id) {
+      if (!confirm('确定删除这个监控？')) return;
+      try {
+        await callApi('delete', { id });
+        toast('已删除');
+        loadMonitors();
+      } catch(e) { toast('删除失败: ' + e.message, true); }
+    }
+
+    async function toggleMonitor(id) {
+      try {
+        await callApi('toggle', { id });
+        loadMonitors();
+      } catch(e) { toast('操作失败: ' + e.message, true); }
+    }
+
+    // ── 添加监控 ──
+    async function addMonitor() {
+      const url = document.getElementById('inputUrl').value.trim();
+      if (!url) { toast('请输入 URL', true); return; }
+      if (!url.startsWith('http')) { toast('URL 需以 http:// 或 https:// 开头', true); return; }
+      try {
+        const expected = parseInt(document.getElementById('inputCode').value) || 200;
+        const timeout = parseInt(document.getElementById('inputTimeout').value) || 3000;
+        await callApi('add', { url, expected_status: expected, latency_threshold_ms: timeout });
+        document.getElementById('inputUrl').value = '';
+        document.getElementById('inputCode').value = '200';
+        document.getElementById('inputTimeout').value = '3000';
+        toast('添加成功，1分钟内开始检测');
+        navTo('monitors');
+        loadUserPlan();
+      } catch(e) {
+        // 配额超限 → 弹升级窗
+        if (e.code === 'QUOTA_EXCEEDED') {
+          showUpgradeModal();
+        } else {
+          toast('添加失败: ' + e.message, true);
+        }
+      }
+    }
+
+    // ── 通知设置 ──
+    function selectType(type) {
+      currentWebhookType = type;
+      document.getElementById('typeFeishu').classList.toggle('selected', type === 'feishu');
+      document.getElementById('typeWecom').classList.toggle('selected', type === 'wecom');
+      document.getElementById('webhookHint').textContent = type === 'wecom'
+        ? '企业微信：群聊 → 添加群机器人 → 复制 Webhook 地址'
+        : '飞书：群设置 → 群机器人 → 添加自定义机器人，安全设置关键词填「监控」';
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await callApi('getSettings');
+        const cfg = res.data;
+        if (cfg.webhook_url) {
+          document.getElementById('webhookUrl').value = cfg.webhook_url;
+          selectType(cfg.webhook_type || 'feishu');
+          const label = cfg.webhook_type === 'wecom' ? '企业微信' : '飞书';
+          document.getElementById('webhookStatus').innerHTML =
+            `<div class="webhook-status">✅ 已配置 ${label} Webhook</div>`;
+        } else {
+          document.getElementById('webhookStatus').innerHTML =
+            `<div class="webhook-status empty">⚪ 未配置告警渠道，检测失败时将静默</div>`;
+        }
+      } catch(e) { console.warn('加载设置失败', e.message); }
+    }
+
+    async function saveSettings() {
+      const webhook_url = document.getElementById('webhookUrl').value.trim();
+      if (!webhook_url) { toast('请输入 Webhook 地址', true); return; }
+      if (!webhook_url.startsWith('https://')) { toast('Webhook 地址需以 https:// 开头', true); return; }
+      try {
+        await callApi('saveSettings', { webhook_url, webhook_type: currentWebhookType });
+        const label = currentWebhookType === 'wecom' ? '企业微信' : '飞书';
+        toast(`${label} Webhook 已保存`);
+        document.getElementById('webhookStatus').innerHTML =
+          `<div class="webhook-status">✅ 已配置 ${label} Webhook</div>`;
+      } catch(e) { toast('保存失败: ' + e.message, true); }
+    }
+
+    async function testWebhook() {
+      const webhook_url = document.getElementById('webhookUrl').value.trim();
+      if (!webhook_url) { toast('请先填写并保存 Webhook 地址', true); return; }
+      try {
+        await callApi('testWebhook', { webhook_url, webhook_type: currentWebhookType });
+        toast('测试消息已发送，请查看群通知');
+      } catch(e) { toast('发送失败: ' + e.message, true); }
+    }
+
+    // ── 详情弹窗 ──
+    function openDetail(monitorId) {
+      detailMonitorId = monitorId;
+      detailPage = 1;
+      const m = monitors.find(x => x._id === monitorId);
+      document.getElementById('detailUrl').textContent = m ? m.url : '—';
+      document.getElementById('detailOverlay').classList.add('show');
+      loadLogs(1);
+    }
+
+    function closeDetail(e) {
+      if (e && e.target !== document.getElementById('detailOverlay')) return;
+      document.getElementById('detailOverlay').classList.remove('show');
+      detailMonitorId = null;
+    }
+
+    async function loadLogs(page) {
+      detailPage = page;
+      const tbody = document.getElementById('logTableBody');
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:#bbb;">加载中...</td></tr>';
+      try {
+        const res = await callApi('getLogs', { monitor_id: detailMonitorId, page, pageSize: 10 });
+        const { logs, total, totalPages } = res.data;
+        detailTotalPages = totalPages;
+        renderLogTable(logs);
+        renderPagination(page, totalPages, total);
+      } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:#e74c3c;">加载失败: ${esc(e.message)}</td></tr>`;
+      }
+    }
+
+    function renderLogTable(logs) {
+      const tbody = document.getElementById('logTableBody');
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:#ccc;">暂无检测数据</td></tr>';
+        return;
+      }
+      tbody.innerHTML = logs.map(l => {
+        const time = new Date(l.checked_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        const badge = l.is_up
+          ? '<span class="log-badge up">✅ 正常</span>'
+          : '<span class="log-badge down">❌ 异常</span>';
+        return `<tr>
+          <td>${time}</td>
+          <td>${l.status_code || '超时'}</td>
+          <td>${l.latency_ms}ms</td>
+          <td>${badge}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderPagination(page, totalPages, total) {
+      document.getElementById('pageInfo').textContent = `共 ${total} 条记录，第 ${page} / ${totalPages} 页`;
+
+      if (totalPages <= 1) {
+        document.getElementById('pageBtns').innerHTML = '';
+        return;
+      }
+
+      let html = '';
+      html += `<button class="page-btn" onclick="loadLogs(1)" ${page <= 1 ? 'disabled' : ''}>&laquo;</button>`;
+      html += `<button class="page-btn" onclick="loadLogs(${page - 1})" ${page <= 1 ? 'disabled' : ''}>上一页</button>`;
+
+      // 页码按钮（最多显示5个）
+      const maxBtns = 5;
+      let start = Math.max(1, page - 2);
+      let end = Math.min(totalPages, start + maxBtns - 1);
+      if (end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
+
+      for (let i = start; i <= end; i++) {
+        html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="loadLogs(${i})">${i}</button>`;
+      }
+
+      html += `<button class="page-btn" onclick="loadLogs(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>下一页</button>`;
+      html += `<button class="page-btn" onclick="loadLogs(${totalPages})" ${page >= totalPages ? 'disabled' : ''}>&raquo;</button>`;
+      document.getElementById('pageBtns').innerHTML = html;
+    }
+
+    // 回车添加
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('page-add').classList.contains('active')) {
+        addMonitor();
+      }
+      if (e.key === 'Escape') {
+        closeDetail();
+        hideUpgradeModal();
+      }
+    });
+
+    // 每30秒刷新列表
+    setInterval(() => {
+      if (document.getElementById('page-monitors').classList.contains('active')) loadMonitors();
+    }, 30000);
+
+    init();
+  </script>
+</body>
+</html>

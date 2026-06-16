@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API监控 — 简单可靠的接口运行状态监控，飞书/企微秒级告警</title>
+  <meta name="description" content="API监控是一款面向国内开发者的接口监控SaaS工具。5个接口永久免费，自动检测运行状态，飞书/企业微信秒级告警。0元即可开始使用。">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f0f2f5;
+      color: #2c3e50;
+      line-height: 1.6;
+    }
+
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      padding: 0 32px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-logo {
+      font-size: 18px; font-weight: 700; color: #1a1f2e;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .topbar-logo .dot { width: 8px; height: 8px; border-radius: 50%; background: #4a90d9; display: inline-block; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .topbar-nav { display: flex; gap: 32px; align-items: center; }
+    .topbar-nav a { font-size: 14px; color: #666; text-decoration: none; font-weight: 500; transition: color .15s; }
+    .topbar-nav a:hover { color: #4a90d9; }
+    .btn-nav { padding: 8px 20px; background: #4a90d9; color: #fff !important; border-radius: 8px; font-weight: 600 !important; transition: background .2s !important; }
+    .btn-nav:hover { background: #357abd !important; }
+
+    .hero { padding: 140px 32px 100px; text-align: center; background: linear-gradient(180deg, #fff 0%, #f0f2f5 100%); }
+    .hero-badge { display: inline-block; background: #e8f4fd; color: #4a90d9; font-size: 13px; font-weight: 600; padding: 5px 14px; border-radius: 20px; margin-bottom: 24px; }
+    .hero h1 { font-size: 48px; font-weight: 800; color: #1a1f2e; line-height: 1.25; max-width: 680px; margin: 0 auto 16px; }
+    .hero h1 .hl { color: #4a90d9; }
+    .hero-desc { font-size: 18px; color: #666; max-width: 560px; margin: 0 auto 36px; line-height: 1.7; }
+    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { padding: 14px 36px; background: #4a90d9; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all .2s; box-shadow: 0 4px 16px rgba(74,144,217,0.3); }
+    .btn-primary:hover { background: #357abd; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(74,144,217,0.4); }
+    .btn-outline { padding: 14px 36px; background: #fff; color: #4a90d9; border: 2px solid #4a90d9; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all .2s; }
+    .btn-outline:hover { background: #f0f6ff; }
+    .hero-stats { display: flex; gap: 48px; justify-content: center; margin-top: 64px; }
+    .hero-stat { text-align: center; }
+    .hero-stat .num { font-size: 32px; font-weight: 800; color: #1a1f2e; line-height: 1; }
+    .hero-stat .label { font-size: 13px; color: #999; margin-top: 8px; }
+
+    .section { padding: 80px 32px; }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-header h2 { font-size: 32px; font-weight: 700; color: #1a1f2e; margin-bottom: 12px; }
+    .section-header p { font-size: 16px; color: #888; max-width: 480px; margin: 0 auto; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .feature-card { background: #fff; border-radius: 14px; padding: 32px 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); transition: all .25s; border: 1px solid rgba(0,0,0,0.04); }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: 0 8px 28px rgba(0,0,0,0.1); }
+    .feature-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+    .feature-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #1a1f2e; }
+    .feature-card p { font-size: 14px; color: #777; line-height: 1.7; }
+
+    .steps { display: flex; gap: 24px; }
+    .step { flex: 1; background: #fff; border-radius: 14px; padding: 32px 24px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.05); position: relative; }
+    .step-num { width: 40px; height: 40px; border-radius: 50%; background: #4a90d9; color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #1a1f2e; }
+    .step p { font-size: 14px; color: #777; line-height: 1.7; }
+    .step-arrow { position: absolute; right: -18px; top: 50%; transform: translateY(-50%); font-size: 24px; color: #ccc; z-index: 2; }
+    .step:last-child .step-arrow { display: none; }
+
+    .pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; max-width: 780px; margin: 0 auto; }
+    .pricing-card { background: #fff; border-radius: 16px; padding: 40px 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); text-align: center; border: 2px solid transparent; transition: all .25s; position: relative; }
+    .pricing-card.featured { border-color: #4a90d9; box-shadow: 0 4px 24px rgba(74,144,217,0.15); }
+    .pricing-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #4a90d9, #357abd); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 18px; border-radius: 12px; }
+    .pricing-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 4px; color: #1a1f2e; }
+    .pricing-card .tagline { font-size: 13px; color: #999; margin-bottom: 24px; }
+    .pricing-card .price { font-size: 42px; font-weight: 800; color: #1a1f2e; margin-bottom: 4px; }
+    .pricing-card .price small { font-size: 18px; font-weight: 500; }
+    .pricing-card .period { font-size: 12px; color: #aaa; margin-bottom: 28px; }
+    .pricing-features { list-style: none; text-align: left; margin-bottom: 28px; }
+    .pricing-features li { padding: 8px 0; font-size: 14px; color: #555; display: flex; align-items: center; gap: 10px; }
+    .pricing-features li::before { content: '\2713'; color: #4a90d9; font-weight: 700; }
+    .pricing-btn { display: block; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; }
+    .pricing-btn.primary { background: #4a90d9; color: #fff; box-shadow: 0 4px 14px rgba(74,144,217,0.3); }
+    .pricing-btn.primary:hover { background: #357abd; }
+
+    .faq-list { max-width: 680px; margin: 0 auto; }
+    .faq-item { background: #fff; border-radius: 12px; padding: 24px 28px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); cursor: pointer; }
+    .faq-q { display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600; color: #1a1f2e; }
+    .faq-q .arrow { font-size: 12px; color: #aaa; transition: transform .2s; }
+    .faq-a { font-size: 14px; color: #666; line-height: 1.7; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; display: none; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-item.open .faq-q .arrow { transform: rotate(180deg); }
+
+    .cta { background: linear-gradient(135deg, #1a1f2e 0%, #2c3e50 100%); padding: 80px 32px; text-align: center; }
+    .cta h2 { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+    .cta p { font-size: 16px; color: rgba(255,255,255,0.5); margin-bottom: 36px; }
+    .cta .btn-primary { padding: 16px 44px; font-size: 17px; }
+
+    .footer { background: #1a1f2e; padding: 40px 32px 32px; text-align: center; color: rgba(255,255,255,0.35); font-size: 13px; }
+    .footer a { color: rgba(255,255,255,0.5); text-decoration: none; }
+    .footer a:hover { color: #4a90d9; }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 32px; }
+      .hero-stats { gap: 24px; flex-wrap: wrap; }
+      .features-grid { grid-template-columns: 1fr; }
+      .steps { flex-direction: column; }
+      .step-arrow { display: none; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .topbar { padding: 0 16px; }
+      .topbar-nav a:not(.btn-nav) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">
+    <span class="dot"></span> API监控
+  </div>
+  <div class="topbar-nav">
+    <a href="#features">功能</a>
+    <a href="#how">使用流程</a>
+    <a href="#pricing">价格</a>
+    <a href="#faq">常见问题</a>
+    <a href="login.html" class="btn-nav">免费使用</a>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="hero-badge">🎉 5个接口永久免费</div>
+  <h1>接口挂了？<br><span class="hl">在用户发现之前，先通知你。</span></h1>
+  <p class="hero-desc">
+    自动检测你的 API 接口运行状态，支持飞书和企微即时告警。<br>
+    无需部署、无需运维，30秒完成配置，即刻开始监控。
+  </p>
+  <div class="hero-actions">
+    <a href="login.html" class="btn-primary">免费开始使用 →</a>
+    <a href="#pricing" class="btn-outline">查看价格</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="num">30<span style="font-size:20px">秒</span></div>
+      <div class="label">配置上线</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">5 个</div>
+      <div class="label">永久免费监控</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">~10<span style="font-size:20px">秒</span></div>
+      <div class="label">故障响应时间</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-header">
+      <h2>你的接口，24小时有人守着</h2>
+      <p>不需要搭Grafana，不需要配Prometheus，开箱即用的接口监控</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#e8f4fd;">🔍</div>
+        <h3>HTTP 接口自动检测</h3>
+        <p>支持 GET/POST，自定义请求头和Body。每分钟自动探测，记录状态码、响应时间和返回内容。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fff3e0;">⚡</div>
+        <h3>飞书 / 企微 秒级告警</h3>
+        <p>连续3次检测失败立即推送告警消息到飞书或企业微信群，故障恢复时也会通知，10分钟冷却防刷。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#e8f5e9;">📊</div>
+        <h3>详细检测日志</h3>
+        <p>每次检测结果完整记录：时间、状态码、延迟、结果。支持历史翻页查看，方便追溯故障原因。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fce4ec;">🛡️</div>
+        <h3>支持内网接口</h3>
+        <p>支持监控内网API地址（只要你部署了检测端），保护你的内部服务。公网接口更不在话下。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#ede7f6;">⏱️</div>
+        <h3>超时阈值自定义</h3>
+        <p>每个监控独立设置超时时间，超过阈值即视为失败，精准掌控接口性能。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#e0f7fa;">💰</div>
+        <h3>零成本开始</h3>
+        <p>免费版支持5个监控接口，无任何隐藏费用。按需升级 Pro，50个接口仅需9.9元/月。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how" style="background:#fff;">
+  <div class="container">
+    <div class="section-header">
+      <h2>三步开始监控</h2>
+      <p>从注册到收到第一条告警，不超过三分钟</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>注册账号</h3>
+        <p>使用邮箱注册，无需绑定手机号，无需实名认证。</p>
+        <div class="step-arrow">→</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>添加监控</h3>
+        <p>填写API地址、请求方式，设置超时阈值。30秒完成。</p>
+        <div class="step-arrow">→</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>配置告警</h3>
+        <p>粘贴飞书或企微的 Webhook 地址，接口出问题马上通知你。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="pricing">
+  <div class="container">
+    <div class="section-header">
+      <h2>简单透明的定价</h2>
+      <p>没有隐藏费用，不需要签合同</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h3>免费版</h3>
+        <p class="tagline">个人开发者/小项目起步</p>
+        <div class="price"><small>¥</small>0</div>
+        <div class="period">永久免费</div>
+        <ul class="pricing-features">
+          <li>5个监控接口</li>
+          <li>每分钟自动检测</li>
+          <li>飞书 / 企微告警通知</li>
+          <li>详细检测日志</li>
+          <li>自定义超时阈值</li>
+        </ul>
+        <a href="login.html" class="pricing-btn primary">免费使用</a>
+      </div>
+      <div class="pricing-card featured">
+        <div class="pricing-badge">推荐</div>
+        <h3>Pro 版</h3>
+        <p class="tagline">团队/中小项目用</p>
+        <div class="price"><small>¥</small>9.9</div>
+        <div class="period">/ 月</div>
+        <ul class="pricing-features">
+          <li>50个监控接口</li>
+          <li>每分钟自动检测</li>
+          <li>飞书 / 企微告警通知</li>
+          <li>详细检测日志</li>
+          <li>自定义超时阈值</li>
+          <li>优先支持响应</li>
+        </ul>
+        <a href="login.html" class="pricing-btn primary" style="background:linear-gradient(135deg,#f5a623,#f76b1c);box-shadow:0 4px 14px rgba(245,166,35,0.3);">登录后升级 Pro</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" style="background:#fff;">
+  <div class="container">
+    <div class="section-header">
+      <h2>常见问题</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          检测节点在哪里？能监控内网接口吗？
+          <span class="arrow">▾</span>
+        </div>
+        <div class="faq-a">
+          检测节点部署在云端。如果需要监控内网接口，你可以自行部署检测端（后续开放），或者将内网接口通过公网映射后进行监控。
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          检测频率是多少？延迟大吗？
+          <span class="arrow">▾</span>
+        </div>
+        <div class="faq-a">
+          每分钟执行一次检测。如果接口连续3次检测失败（约3分钟），系统会立即推送告警通知。故障恢复后也会实时通知。
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          支持哪些告警渠道？
+          <span class="arrow">▾</span>
+        </div>
+        <div class="faq-a">
+          目前支持飞书自定义机器人和企业微信机器人。配置很简单：在飞书/企微群里添加一个Webhook机器人，把地址填进来即可。后续会接入钉钉。
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          数据安全吗？你们会看到我的接口信息吗？
+          <span class="arrow">▾</span>
+        </div>
+        <div class="faq-a">
+          所有数据基于腾讯云CloudBase，采用多租户数据隔离。每个用户只能看到自己的监控数据。
+        </div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+          Pro 怎么付费？支持哪些支付方式？
+          <span class="arrow">▾</span>
+        </div>
+        <div class="faq-a">
+          通过爱发电（afdian.net）订阅，支持支付宝 / 微信支付。¥9.9/月，付款后自动开通，刷新页面即可生效。订阅后次月起每月自动扣费，可随时取消。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>不要再等用户告诉你"接口挂了"</h2>
+  <p>5个接口永久免费，30秒开始监控，现在就来试试</p>
+  <a href="login.html" class="btn-primary">免费开始使用 →</a>
+</section>
+
+<footer class="footer">
+  <p>© 2026 API监控 · 基于腾讯云 CloudBase · <a href="login.html">登录</a> · <a href="app.html">控制台</a></p>
+</footer>
+
+</body>
+</html>
