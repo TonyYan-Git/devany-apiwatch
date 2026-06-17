@@ -796,7 +796,6 @@
   <script src="libs/cloudbase.full.js"></script>
   <script>
     const ENV_ID = 'apiwatch-d9gfn0faz9ddeca93';
-    const HTTP_API = 'https://apiwatch-d9gfn0faz9ddeca93-1442244932.ap-shanghai.app.tcloudbase.com';
     const app = cloudbase.init({ env: ENV_ID });
     const auth = app.auth({ persistence: 'local' });
 
@@ -857,14 +856,13 @@
       location.href = 'login.html';
     }
 
-    // ── 云函数调用（HTTP直连，绕过CORS限制）──
+    // ── 云函数调用（通过SDK，避免CORS）──
     async function callApi(action, data = {}) {
-      const res = await fetch(HTTP_API + '/monitorApi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, data: { ...data, uid: currentUser.uid, email: currentUser.email || '' } })
+      const res = await app.callFunction({
+        name: 'monitorApi',
+        data: { action, data: { ...data, uid: currentUser.uid, email: currentUser.email || '' } }
       });
-      const result = await res.json();
+      const result = res.result;
       if (!result.success) {
         const err = new Error(result.error);
         err.code = result.code;
